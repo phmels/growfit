@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:growfit/core/constants/theme.dart';
 import 'package:growfit/features/cycle/presentation/bloc/cycle_bloc.dart';
+import 'package:growfit/features/cycle/presentation/bloc/cycle_event.dart';
 import 'package:growfit/features/cycle/presentation/bloc/cycle_state.dart';
 import 'package:growfit/features/plan/presentation/pages/plan_page.dart';
 import 'package:growfit/features/workout/domain/entities/workout_session.dart';
@@ -9,31 +10,56 @@ import 'package:growfit/features/workout/presentation/pages/workout_calendar_pag
 import 'package:growfit/features/workout/presentation/pages/workout_page.dart';
 import 'package:hive/hive.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  Future<void> _onRefresh() async {
+    context.read<CycleBloc>().add(LoadCycle());
+
+    // Aguarda CycleReady ou CycleError, com timeout de 5s
+    await context
+        .read<CycleBloc>()
+        .stream
+        .firstWhere((s) => s is CycleReady || s is CycleError)
+        .timeout(const Duration(seconds: 5), onTimeout: () => CycleInitial());
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _Header(),
-              const SizedBox(height: 4),
-              const _HeroStats(),
-              const SizedBox(height: 16),
-              const _StartWorkoutButton(),
-              const SizedBox(height: 24),
-              const _SectionLabel('Acesso rápido'),
-              const SizedBox(height: 12),
-              const _QuickGrid(),
-              const SizedBox(height: 12),
-              const _ResetCard(),
-            ],
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          color: AppColors.primary,
+          backgroundColor: AppColors.surface,
+          displacement: 40,
+          child: SingleChildScrollView(
+            // Obrigatório para o RefreshIndicator funcionar mesmo
+            // quando o conteúdo não precisa de scroll
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _Header(),
+                const SizedBox(height: 4),
+                const _HeroStats(),
+                const SizedBox(height: 16),
+                const _StartWorkoutButton(),
+                const SizedBox(height: 24),
+                const _SectionLabel('Acesso rápido'),
+                const SizedBox(height: 12),
+                const _QuickGrid(),
+                const SizedBox(height: 12),
+                const _ResetCard(),
+              ],
+            ),
           ),
         ),
       ),
@@ -282,22 +308,84 @@ class _StartWorkoutButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<CycleBloc, CycleState>(
       builder: (context, state) {
-        if (state is! CycleReady) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            child: Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+        // Estado de loading ou inicial — mostra dica de puxar para atualizar
+        if (state is CycleLoading || state is CycleInitial) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.border),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    'Carregando... puxe para atualizar',
+                    style: AppTextStyles.subtitle.copyWith(fontSize: 13),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
+        // Estado de erro — orienta o usuário a criar um plano
+        if (state is CycleError) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.danger.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.danger.withOpacity(0.2)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Row(
+                children: [
+                  const Text('⚠️', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Nenhum plano encontrado',
+                          style: AppTextStyles.title.copyWith(fontSize: 14),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Crie um plano ou puxe para tentar novamente',
+                          style: AppTextStyles.subtitle.copyWith(fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Estado pronto — mostra botão de iniciar treino
+        final ready = state as CycleReady;
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: GestureDetector(
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => WorkoutPage(day: state.nextTrainingDay),
+                builder: (_) => WorkoutPage(day: ready.nextTrainingDay),
               ),
             ),
             child: Container(
@@ -325,7 +413,7 @@ class _StartWorkoutButton extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        state.nextTrainingDay.name,
+                        ready.nextTrainingDay.name,
                         style: AppTextStyles.title.copyWith(
                           fontSize: 26,
                           color: AppColors.bg,
