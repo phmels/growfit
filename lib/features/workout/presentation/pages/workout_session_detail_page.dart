@@ -6,10 +6,7 @@ import 'package:growfit/features/workout/domain/entities/set_log.dart';
 class WorkoutSessionDetailPage extends StatelessWidget {
   final WorkoutSession session;
 
-  const WorkoutSessionDetailPage({
-    super.key,
-    required this.session,
-  });
+  const WorkoutSessionDetailPage({super.key, required this.session});
 
   @override
   Widget build(BuildContext context) {
@@ -37,13 +34,11 @@ class WorkoutSessionDetailPage extends StatelessWidget {
               itemBuilder: (context, index) {
                 final entry = entries[index];
                 final List<SetLog> sets = entry.value;
-                final exerciseName =
-                    sets.isNotEmpty ? sets.first.exerciseName : entry.key;
+                final exerciseName = sets.isNotEmpty
+                    ? sets.first.exerciseName
+                    : entry.key;
 
-                return _ExerciseCard(
-                  name: exerciseName,
-                  sets: sets,
-                );
+                return _ExerciseCard(name: exerciseName, sets: sets);
               },
             ),
     );
@@ -96,8 +91,9 @@ class _ExerciseCard extends StatelessWidget {
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(left: 48, top: 2, bottom: 4),
+            // Em _ExerciseCard, no subtitle
             child: Text(
-              '${sets.length} série(s)',
+              '${sets.first.setNumber} série(s) · ${sets.first.reps} reps · ${sets.first.weight} kg',
               style: AppTextStyles.subtitle.copyWith(fontSize: 11),
             ),
           ),

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:growfit/core/constants/theme.dart';
+import 'package:growfit/features/plan/domain/entities/training_plan.dart';
 import 'package:growfit/features/workout/presentation/pages/workout_session_detail_page.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:growfit/features/workout/domain/entities/workout_session.dart';
+import 'package:growfit/features/plan/domain/entities/training_day.dart'; // ⭐ import
 
 class WorkoutCalendarPage extends StatefulWidget {
   const WorkoutCalendarPage({super.key});
@@ -17,6 +19,7 @@ class _WorkoutCalendarPageState extends State<WorkoutCalendarPage> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   Map<DateTime, List<WorkoutSession>> _events = {};
+  Map<String, String> _dayNames = {}; // ⭐ trainingDayId → nome do treino
 
   @override
   void initState() {
@@ -28,18 +31,36 @@ class _WorkoutCalendarPageState extends State<WorkoutCalendarPage> {
       DateTime(date.year, date.month, date.day);
 
   void _loadSessions() {
-    final box = Hive.box<WorkoutSession>('workoutSessions');
+    final sessionBox = Hive.box<WorkoutSession>('workoutSessions');
+    final planBox = Hive.box<TrainingPlan>('trainingPlans'); // ⭐ tipo correto
+
+    // ⭐ Monta mapa trainingDayId → nome do treino
+    final Map<String, String> dayNames = {};
+    for (final plan in planBox.values) {
+      for (final TrainingDay day in plan.days) {
+        dayNames[day.id] = day.name;
+      }
+    }
+
     final Map<DateTime, List<WorkoutSession>> data = {};
-    for (var session in box.values) {
+    for (var session in sessionBox.values) {
       final day = _normalize(session.date);
       data[day] ??= [];
       data[day]!.add(session);
     }
-    setState(() => _events = data);
+
+    setState(() {
+      _events = data;
+      _dayNames = dayNames;
+    });
   }
 
   List<WorkoutSession> _getEventsForDay(DateTime day) =>
       _events[_normalize(day)] ?? [];
+
+  // ⭐ Retorna nome do treino ou fallback
+  String _getTrainingName(WorkoutSession session) =>
+      _dayNames[session.trainingDayId] ?? 'Treino';
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +77,6 @@ class _WorkoutCalendarPageState extends State<WorkoutCalendarPage> {
       ),
       body: Column(
         children: [
-          // ── CALENDÁRIO ────────────────────────────────────────────────────
           Container(
             margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             decoration: BoxDecoration(
@@ -74,8 +94,14 @@ class _WorkoutCalendarPageState extends State<WorkoutCalendarPage> {
                 formatButtonVisible: false,
                 titleCentered: true,
                 titleTextStyle: AppTextStyles.title.copyWith(fontSize: 15),
-                leftChevronIcon: const Icon(Icons.chevron_left, color: AppColors.textLight),
-                rightChevronIcon: const Icon(Icons.chevron_right, color: AppColors.textLight),
+                leftChevronIcon: const Icon(
+                  Icons.chevron_left,
+                  color: AppColors.textLight,
+                ),
+                rightChevronIcon: const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.textLight,
+                ),
               ),
               daysOfWeekStyle: DaysOfWeekStyle(
                 weekdayStyle: AppTextStyles.subtitle.copyWith(fontSize: 12),
@@ -129,7 +155,6 @@ class _WorkoutCalendarPageState extends State<WorkoutCalendarPage> {
 
           const SizedBox(height: 16),
 
-          // ── LABEL SESSÕES ─────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
@@ -138,7 +163,10 @@ class _WorkoutCalendarPageState extends State<WorkoutCalendarPage> {
                 const SizedBox(width: 8),
                 if (sessions.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
@@ -154,7 +182,6 @@ class _WorkoutCalendarPageState extends State<WorkoutCalendarPage> {
 
           const SizedBox(height: 8),
 
-          // ── LISTA DE SESSÕES ──────────────────────────────────────────────
           Expanded(
             child: sessions.isEmpty
                 ? Center(
@@ -175,17 +202,15 @@ class _WorkoutCalendarPageState extends State<WorkoutCalendarPage> {
                     itemCount: sessions.length,
                     itemBuilder: (context, index) {
                       final session = sessions[index];
-                      final firstExercise = session.exerciseSets.values
-                              .expand((e) => e)
-                              .map((e) => e.exerciseName)
-                              .firstOrNull ??
-                          'Treino';
-                      final dateStr = DateFormat('dd/MM/yyyy · HH:mm')
-                          .format(session.date);
+                      final dateStr = DateFormat(
+                        'dd/MM/yyyy · HH:mm',
+                      ).format(session.date);
                       final totalExercises = session.exerciseSets.length;
 
                       return _SessionCard(
-                        name: firstExercise,
+                        name: _getTrainingName(
+                          session,
+                        ), // ⭐ "Treino A", "Treino B"...
                         date: dateStr,
                         exerciseCount: totalExercises,
                         onTap: () => Navigator.push(
@@ -205,7 +230,6 @@ class _WorkoutCalendarPageState extends State<WorkoutCalendarPage> {
   }
 }
 
-// ── SESSION CARD ─────────────────────────────────────────────────────────────
 class _SessionCard extends StatelessWidget {
   final String name;
   final String date;
@@ -253,10 +277,13 @@ class _SessionCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: AppTextStyles.title.copyWith(fontSize: 14)),
+                      Text(
+                        name,
+                        style: AppTextStyles.title.copyWith(fontSize: 14),
+                      ),
                       const SizedBox(height: 3),
                       Text(
-                        '$date · $exerciseCount exercício(s)',
+                        '$date · $exerciseCount exercício(s)', // ⭐ era totalExercises, correto é exerciseCount
                         style: AppTextStyles.subtitle.copyWith(fontSize: 11),
                       ),
                     ],
@@ -274,8 +301,4 @@ class _SessionCard extends StatelessWidget {
       ),
     );
   }
-}
-
-extension FirstOrNull<E> on Iterable<E> {
-  E? get firstOrNull => isEmpty ? null : first;
 }

@@ -49,22 +49,39 @@ class _WorkoutPageState extends State<WorkoutPage> {
   }
 
   Future<void> _loadWorkout() async {
-    final lastValues = await _getLastExerciseValues();
+    final box = Hive.box<WorkoutSession>('workoutSessions');
+    final sessions = box.values
+        .where((s) => s.trainingDayId == widget.day.id)
+        .toList();
+
+    Map<String, List<SetLog>> lastSets = {};
+    if (sessions.isNotEmpty) {
+      sessions.sort((a, b) => b.date.compareTo(a.date));
+      // ⭐ copia direto as chaves compostas 'grupo__exId'
+      lastSets = Map.from(sessions.first.exerciseSets);
+    }
+
     workoutGroups = widget.day.groups.map((group) {
       return WorkoutGroup(
         name: group.name,
         exercises: group.exercises.map((ex) {
-          final last = lastValues[ex.id];
+          // ⭐ lookup pela mesma chave composta usada ao salvar
+          final key = '${group.name}__${ex.id}';
+          final lastList = lastSets[key];
+          final lastLog = lastList?.first; // ⭐ first em vez de last
           return WorkoutExercise(
             id: ex.id,
             name: ex.name,
-            weight: last?.weight ?? ex.defaultWeight,
-            reps: last?.reps ?? ex.defaultReps,
-            series: last != null ? last.setNumber : ex.defaultSeries,
+            weight: lastLog?.weight ?? ex.defaultWeight,
+            reps: lastLog?.reps ?? ex.defaultReps,
+            series:
+                lastLog?.setNumber ??
+                ex.defaultSeries, // ⭐ setNumber = total de séries
           );
         }).toList(),
       );
     }).toList();
+
     setState(() {});
   }
 
@@ -74,16 +91,16 @@ class _WorkoutPageState extends State<WorkoutPage> {
 
     for (var group in workoutGroups) {
       for (var ex in group.exercises) {
-        logs[ex.id] = List.generate(
-          ex.series,
-          (i) => SetLog(
+        final key = '${group.name}__${ex.id}';
+        logs[key] = [
+          SetLog(
             exerciseId: ex.id,
             exerciseName: ex.name,
-            setNumber: i + 1,
+            setNumber: ex.series, // ⭐ guarda o total de séries aqui
             weight: ex.weight,
             reps: ex.reps,
           ),
-        );
+        ]; // ⭐ lista com apenas 1 item
       }
     }
 
@@ -95,9 +112,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
 
     await sessionBox.add(session);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Treino salvo com sucesso!')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Treino salvo com sucesso!')));
   }
 
   @override
@@ -105,7 +122,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
     if (workoutGroups.isEmpty && widget.day.groups.isNotEmpty) {
       return const Scaffold(
         backgroundColor: AppColors.bg,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
 
@@ -241,7 +260,10 @@ class _GroupCard extends StatelessWidget {
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           iconColor: AppColors.primary,
           collapsedIconColor: AppColors.muted,
-          title: Text(group.name, style: AppTextStyles.title.copyWith(fontSize: 15)),
+          title: Text(
+            group.name,
+            style: AppTextStyles.title.copyWith(fontSize: 15),
+          ),
           children: group.exercises.map((exercise) {
             return _ExerciseRow(exercise: exercise);
           }).toList(),
@@ -262,14 +284,13 @@ class _ExerciseRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Expanded(
-            child: Text(exercise.name, style: AppTextStyles.subtitle),
-          ),
+          Expanded(child: Text(exercise.name, style: AppTextStyles.subtitle)),
           const SizedBox(width: 8),
           _NumberField(
             initialValue: exercise.weight.toString(),
             label: 'Kg',
-            onChanged: (v) => exercise.weight = double.tryParse(v) ?? exercise.weight,
+            onChanged: (v) =>
+                exercise.weight = double.tryParse(v) ?? exercise.weight,
           ),
           const SizedBox(width: 8),
           _NumberField(
@@ -281,7 +302,8 @@ class _ExerciseRow extends StatelessWidget {
           _NumberField(
             initialValue: exercise.series.toString(),
             label: 'Séries',
-            onChanged: (v) => exercise.series = int.tryParse(v) ?? exercise.series,
+            onChanged: (v) =>
+                exercise.series = int.tryParse(v) ?? exercise.series,
           ),
         ],
       ),
@@ -316,7 +338,10 @@ class _NumberField extends StatelessWidget {
           isDense: true,
           filled: true,
           fillColor: AppColors.card,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 10,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: AppColors.border),
