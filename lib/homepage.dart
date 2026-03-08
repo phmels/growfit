@@ -8,6 +8,7 @@ import 'package:growfit/features/plan/presentation/bloc/plan_bloc.dart';
 import 'package:growfit/features/plan/presentation/bloc/plan_state.dart';
 import 'package:growfit/features/plan/presentation/pages/plan_page.dart';
 import 'package:growfit/features/workout/domain/entities/workout_session.dart';
+import 'package:growfit/features/workout/presentation/pages/progress_page.dart';
 import 'package:growfit/features/workout/presentation/pages/workout_calendar_page.dart';
 import 'package:growfit/features/workout/presentation/pages/workout_page.dart';
 import 'package:hive/hive.dart';
@@ -59,7 +60,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 12),
                 const _QuickGrid(),
                 const SizedBox(height: 12),
-                const _ResetCard(),
+                const _BottomActions (),
               ],
             ),
           ),
@@ -100,7 +101,10 @@ class _Header extends StatelessWidget {
               ),
             ),
             alignment: Alignment.center,
-            child: Text('GF', style: AppTextStyles.button.copyWith(fontSize: 15)),
+            child: Text(
+              'GF',
+              style: AppTextStyles.button.copyWith(fontSize: 15),
+            ),
           ),
         ],
       ),
@@ -117,7 +121,11 @@ class _HeroStats extends StatelessWidget {
     final box = Hive.box<WorkoutSession>('workoutSessions');
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final start = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+    final start = DateTime(
+      startOfWeek.year,
+      startOfWeek.month,
+      startOfWeek.day,
+    );
     final end = start.add(const Duration(days: 7));
     return box.values
         .where((s) => s.date.isAfter(start) && s.date.isBefore(end))
@@ -128,11 +136,12 @@ class _HeroStats extends StatelessWidget {
     if (!Hive.isBoxOpen('workoutSessions')) return 0;
     final box = Hive.box<WorkoutSession>('workoutSessions');
     if (box.isEmpty) return 0;
-    final days = box.values
-        .map((s) => DateTime(s.date.year, s.date.month, s.date.day))
-        .toSet()
-        .toList()
-      ..sort((a, b) => b.compareTo(a));
+    final days =
+        box.values
+            .map((s) => DateTime(s.date.year, s.date.month, s.date.day))
+            .toSet()
+            .toList()
+          ..sort((a, b) => b.compareTo(a));
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     int streak = 0;
@@ -158,14 +167,13 @@ class _HeroStats extends StatelessWidget {
 
     final sessions = _sessionsThisWeek();
     final count = sessions.length;
-    final percent = weeklyGoal > 0
-        ? (count / weeklyGoal).clamp(0.0, 1.0)
-        : 0.0;
+    final percent = weeklyGoal > 0 ? (count / weeklyGoal).clamp(0.0, 1.0) : 0.0;
     final streak = _currentStreak();
 
     final totalSets = sessions.fold<int>(
       0,
-      (sum, s) => sum +
+      (sum, s) =>
+          sum +
           s.exerciseSets.values.fold<int>(
             0,
             (es, setList) => es + setList.length,
@@ -218,7 +226,11 @@ class _HeroStats extends StatelessWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       _MiniStat(value: '$totalSets', unit: '', label: 'Séries'),
-                      _MiniStat(value: '$streak',    unit: 'd', label: 'Sequência'),
+                      _MiniStat(
+                        value: '$streak',
+                        unit: 'd',
+                        label: 'Sequência',
+                      ),
                     ],
                   ),
                 ),
@@ -230,6 +242,7 @@ class _HeroStats extends StatelessWidget {
     );
   }
 }
+
 // ── PULSE DOT ────────────────────────────────────────────────────────────────
 class _PulseDot extends StatefulWidget {
   const _PulseDot();
@@ -250,9 +263,10 @@ class _PulseDotState extends State<_PulseDot>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
-    _anim = Tween<double>(begin: 1.0, end: 1.5).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _anim = Tween<double>(
+      begin: 1.0,
+      end: 1.5,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -305,10 +319,7 @@ class _ProgressRing extends StatelessWidget {
                   '${(percent * 100).toInt()}',
                   style: AppTextStyles.title.copyWith(fontSize: 20, height: 1),
                 ),
-                Text(
-                  '%',
-                  style: AppTextStyles.subtitle.copyWith(fontSize: 8),
-                ),
+                Text('%', style: AppTextStyles.subtitle.copyWith(fontSize: 8)),
               ],
             ),
           ),
@@ -323,7 +334,11 @@ class _MiniStat extends StatelessWidget {
   final String value;
   final String unit;
   final String label;
-  const _MiniStat({required this.value, required this.unit, required this.label});
+  const _MiniStat({
+    required this.value,
+    required this.unit,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -354,7 +369,10 @@ class _MiniStat extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: AppTextStyles.subtitle.copyWith(fontSize: 10, letterSpacing: 0.4),
+            style: AppTextStyles.subtitle.copyWith(
+              fontSize: 10,
+              letterSpacing: 0.4,
+            ),
           ),
         ],
       ),
@@ -471,7 +489,9 @@ class _StartWorkoutButton extends StatelessWidget {
                     children: [
                       Text(
                         'PRÓXIMO TREINO',
-                        style: AppTextStyles.label.copyWith(color: AppColors.bg),
+                        style: AppTextStyles.label.copyWith(
+                          color: AppColors.bg,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -611,7 +631,10 @@ class _GridCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: AppTextStyles.subtitle.copyWith(fontSize: 11, height: 1.4),
+                style: AppTextStyles.subtitle.copyWith(
+                  fontSize: 11,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -621,92 +644,160 @@ class _GridCard extends StatelessWidget {
   }
 }
 
-// ── RESET CARD ───────────────────────────────────────────────────────────────
-class _ResetCard extends StatelessWidget {
-  const _ResetCard();
+// ── BOTTOM ACTIONS ────────────────────────────────────────────────────────────
+class _BottomActions extends StatelessWidget {
+  const _BottomActions();
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Material(
-        color: AppColors.danger.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: () async {
-            final confirm = await showDialog<bool>(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: const Text('Resetar Dados'),
-                content: const Text(
-                  'Todos os treinos salvos serão apagados. Tem certeza?',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text('Cancelar', style: AppTextStyles.subtitle),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text(
-                      'Apagar',
-                      style: AppTextStyles.subtitle.copyWith(color: AppColors.danger),
-                    ),
-                  ),
-                ],
+      child: Column(
+        children: [
+          // ── EVOLUÇÃO ──
+          Material(
+            color: AppColors.primary.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProgressPage()),
               ),
-            );
-            if (confirm == true) {
-              await Hive.box<WorkoutSession>('workoutSessions').clear();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Dados resetados com sucesso!')),
-                );
-              }
-            }
-          },
-          borderRadius: BorderRadius.circular(18),
-          splashColor: AppColors.danger.withOpacity(0.08),
-          child: Container(
-            decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.danger.withOpacity(0.2)),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            child: Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: AppColors.danger.withOpacity(0.12),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text('🗑️', style: TextStyle(fontSize: 22)),
+              splashColor: AppColors.primary.withOpacity(0.08),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.2)),
                 ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+                child: Row(
                   children: [
-                    Text(
-                      'Resetar Dados',
-                      style: AppTextStyles.title.copyWith(
-                        fontSize: 14,
-                        color: AppColors.danger.withOpacity(0.9),
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.primary.withOpacity(0.12),
                       ),
+                      alignment: Alignment.center,
+                      child: const Text('📊', style: TextStyle(fontSize: 22)),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Apaga todos os treinos salvos',
-                      style: AppTextStyles.subtitle.copyWith(fontSize: 11),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ver Evolução',
+                          style: AppTextStyles.title.copyWith(
+                            fontSize: 14,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Peso e reps ao longo do tempo',
+                          style: AppTextStyles.subtitle.copyWith(fontSize: 11),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 10),
+          // ── RESET ──
+          Material(
+            color: AppColors.danger.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              onTap: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Resetar Dados'),
+                    content: const Text(
+                      'Todos os treinos salvos serão apagados. Tem certeza?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text('Cancelar', style: AppTextStyles.subtitle),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text(
+                          'Apagar',
+                          style: AppTextStyles.subtitle.copyWith(
+                            color: AppColors.danger,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await Hive.box<WorkoutSession>('workoutSessions').clear();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Dados resetados com sucesso!'),
+                      ),
+                    );
+                  }
+                }
+              },
+              borderRadius: BorderRadius.circular(18),
+              splashColor: AppColors.danger.withOpacity(0.08),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.danger.withOpacity(0.2)),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.danger.withOpacity(0.12),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text('🗑️', style: TextStyle(fontSize: 22)),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Resetar Dados',
+                          style: AppTextStyles.title.copyWith(
+                            fontSize: 14,
+                            color: AppColors.danger.withOpacity(0.9),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Apaga todos os treinos salvos',
+                          style: AppTextStyles.subtitle.copyWith(fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
