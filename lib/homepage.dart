@@ -4,6 +4,8 @@ import 'package:growfit/core/constants/theme.dart';
 import 'package:growfit/features/cycle/presentation/bloc/cycle_bloc.dart';
 import 'package:growfit/features/cycle/presentation/bloc/cycle_event.dart';
 import 'package:growfit/features/cycle/presentation/bloc/cycle_state.dart';
+import 'package:growfit/features/plan/presentation/bloc/plan_bloc.dart';
+import 'package:growfit/features/plan/presentation/bloc/plan_state.dart';
 import 'package:growfit/features/plan/presentation/pages/plan_page.dart';
 import 'package:growfit/features/workout/domain/entities/workout_session.dart';
 import 'package:growfit/features/workout/presentation/pages/workout_calendar_page.dart';
@@ -110,8 +112,71 @@ class _Header extends StatelessWidget {
 class _HeroStats extends StatelessWidget {
   const _HeroStats();
 
+  List<WorkoutSession> _sessionsThisWeek() {
+    if (!Hive.isBoxOpen('workoutSessions')) return [];
+    final box = Hive.box<WorkoutSession>('workoutSessions');
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final start = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+    final end = start.add(const Duration(days: 7));
+    return box.values
+        .where((s) => s.date.isAfter(start) && s.date.isBefore(end))
+        .toList();
+  }
+
+  int _currentStreak() {
+    if (!Hive.isBoxOpen('workoutSessions')) return 0;
+    final box = Hive.box<WorkoutSession>('workoutSessions');
+    if (box.isEmpty) return 0;
+    final days = box.values
+        .map((s) => DateTime(s.date.year, s.date.month, s.date.day))
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    int streak = 0;
+    DateTime expected = today;
+    for (final d in days) {
+      if (d == expected) {
+        streak++;
+        expected = expected.subtract(const Duration(days: 1));
+      } else if (d.isBefore(expected)) {
+        break;
+      }
+    }
+    return streak;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Lê o número de dias cadastrados no plano via PlanBloc
+    final planState = context.watch<PlanBloc>().state;
+    final weeklyGoal = planState is PlanLoaded
+        ? planState.plan.days.length
+        : 4; // fallback enquanto carrega
+
+    final sessions = _sessionsThisWeek();
+    final count = sessions.length;
+    final percent = weeklyGoal > 0
+        ? (count / weeklyGoal).clamp(0.0, 1.0)
+        : 0.0;
+    final streak = _currentStreak();
+
+    final totalSets = sessions.fold<int>(
+      0,
+      (sum, s) => sum +
+          s.exerciseSets.values.fold<int>(
+            0,
+            (es, setList) => es + setList.length,
+          ),
+    );
+
+    final remaining = weeklyGoal - count;
+    final motivation = count >= weeklyGoal
+        ? 'Meta da semana batida! 🏆'
+        : 'Mais $remaining treino${remaining > 1 ? 's' : ''} para bater sua meta!';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Container(
@@ -133,15 +198,15 @@ class _HeroStats extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '3 de 4\ntreinos',
+              '$count de $weeklyGoal\ntreinos',
               style: AppTextStyles.title.copyWith(fontSize: 40, height: 1.05),
             ),
             const SizedBox(height: 4),
-            Text('Mais 1 treino para bater sua meta!', style: AppTextStyles.subtitle),
+            Text(motivation, style: AppTextStyles.subtitle),
             const SizedBox(height: 20),
             Row(
               children: [
-                const _ProgressRing(percent: 0.75),
+                _ProgressRing(percent: percent),
                 const SizedBox(width: 20),
                 Expanded(
                   child: GridView.count(
@@ -151,11 +216,9 @@ class _HeroStats extends StatelessWidget {
                     crossAxisSpacing: 10,
                     childAspectRatio: 1.6,
                     physics: const NeverScrollableScrollPhysics(),
-                    children: const [
-                      _MiniStat(value: '42', unit: 'min', label: 'Média'),
-                      _MiniStat(value: '12', unit: 'k',   label: 'Séries'),
-                      _MiniStat(value: '8',  unit: 'd',   label: 'Sequência'),
-                      _MiniStat(value: '↑',  unit: '14%', label: 'vs semana'),
+                    children: [
+                      _MiniStat(value: '$totalSets', unit: '', label: 'Séries'),
+                      _MiniStat(value: '$streak',    unit: 'd', label: 'Sequência'),
                     ],
                   ),
                 ),
@@ -167,7 +230,6 @@ class _HeroStats extends StatelessWidget {
     );
   }
 }
-
 // ── PULSE DOT ────────────────────────────────────────────────────────────────
 class _PulseDot extends StatefulWidget {
   const _PulseDot();

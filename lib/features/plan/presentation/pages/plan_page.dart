@@ -7,6 +7,7 @@ import 'package:growfit/features/plan/domain/entities/training_day.dart';
 import 'package:growfit/features/plan/presentation/bloc/plan_bloc.dart';
 import 'package:growfit/features/plan/presentation/bloc/plan_event.dart';
 import 'package:growfit/features/plan/presentation/bloc/plan_state.dart';
+import 'package:growfit/features/plan/presentation/widgets/group_exercise_selector.dart';
 
 class PlanPage extends StatelessWidget {
   const PlanPage({super.key});
@@ -30,7 +31,7 @@ class PlanPage extends StatelessWidget {
   void _addGroup(BuildContext context, PlanLoaded state, int dayIndex) {
     final newGroup = ExerciseGroup(
       id: 'group_${DateTime.now().millisecondsSinceEpoch}',
-      name: 'Novo Grupamento',
+      name: '', // será preenchido pelo dropdown
       exercises: [],
     );
     final day = state.plan.days[dayIndex];
@@ -44,7 +45,7 @@ class PlanPage extends StatelessWidget {
       if (g.id == groupId) {
         final newExercise = Exercise(
           id: 'ex_${DateTime.now().millisecondsSinceEpoch}',
-          name: 'Novo Exercício',
+          name: '', // será preenchido pelo dropdown
           defaultWeight: 10,
           defaultSeries: 3,
           defaultReps: 10,
@@ -95,76 +96,72 @@ class PlanPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => PlanBloc()..add(LoadPlan()),
-      child: Scaffold(
-        backgroundColor: AppColors.bg,
-        appBar: AppBar(
-          title: const Text('Editar Plano'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.bg),
-            onPressed: () => Navigator.pop(context),
-          ),
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        title: const Text('Editar Plano'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.bg),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: BlocBuilder<PlanBloc, PlanState>(
-          builder: (context, state) {
-            if (state is PlanLoading) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              );
-            }
+      ),
+      body: BlocBuilder<PlanBloc, PlanState>(
+        builder: (context, state) {
+          if (state is PlanLoading) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
+          }
 
-            if (state is PlanLoaded) {
-              final plan = state.plan;
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                child: Column(
-                  children: [
-                    ...plan.days.asMap().entries.map((entry) {
-                      final dayIndex = entry.key;
-                      final day = entry.value;
-                      return _DayCard(
-                        day: day,
-                        dayIndex: dayIndex,
-                        state: state,
-                        onAddGroup: () => _addGroup(context, state, dayIndex),
-                        onAddExercise: (groupId) => _addExercise(context, state, dayIndex, groupId),
-                        onRemoveExercise: (groupId, exId) => _removeExercise(context, state, dayIndex, groupId, exId),
-                        onUpdateExercise: (groupId, ex) => _updateExercise(context, state, dayIndex, groupId, ex),
-                        onSaveGroup: (groupId) => _saveGroup(context, state, dayIndex, groupId),
-                        onRemoveGroup: (group) {
-                          final newGroups = List.of(day.groups)..remove(group);
-                          final updatedDay = day.copyWith(groups: newGroups);
-                          _updatePlan(context, updatedDay, dayIndex, state);
-                        },
-                        onUpdateGroupName: (groupId, name) {
-                          final updatedDay = day.copyWith(
-                            groups: day.groups.map((g) => g.id == groupId ? g.copyWith(name: name) : g).toList(),
-                          );
-                          _updatePlan(context, updatedDay, dayIndex, state);
-                        },
-                      );
-                    }),
-                    const SizedBox(height: 8),
-                    // ── BOTÃO ADICIONAR DIA ───────────────────────────────
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _addTrainingDay(context, state),
-                        icon: const Icon(Icons.add, size: 20),
-                        label: const Text('Adicionar Novo Dia'),
-                      ),
+          if (state is PlanLoaded) {
+            final plan = state.plan;
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              child: Column(
+                children: [
+                  ...plan.days.asMap().entries.map((entry) {
+                    final dayIndex = entry.key;
+                    final day = entry.value;
+                    return _DayCard(
+                      day: day,
+                      dayIndex: dayIndex,
+                      state: state,
+                      onAddGroup: () => _addGroup(context, state, dayIndex),
+                      onAddExercise: (groupId) => _addExercise(context, state, dayIndex, groupId),
+                      onRemoveExercise: (groupId, exId) => _removeExercise(context, state, dayIndex, groupId, exId),
+                      onUpdateExercise: (groupId, ex) => _updateExercise(context, state, dayIndex, groupId, ex),
+                      onSaveGroup: (groupId) => _saveGroup(context, state, dayIndex, groupId),
+                      onRemoveGroup: (group) {
+                        final newGroups = List.of(day.groups)..remove(group);
+                        final updatedDay = day.copyWith(groups: newGroups);
+                        _updatePlan(context, updatedDay, dayIndex, state);
+                      },
+                      onUpdateGroupName: (groupId, name) {
+                        final updatedDay = day.copyWith(
+                          groups: day.groups.map((g) => g.id == groupId ? g.copyWith(name: name) : g).toList(),
+                        );
+                        _updatePlan(context, updatedDay, dayIndex, state);
+                      },
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _addTrainingDay(context, state),
+                      icon: const Icon(Icons.add, size: 20),
+                      label: const Text('Adicionar Novo Dia'),
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              );
-            }
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          }
 
-            return const SizedBox.shrink();
-          },
-        ),
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -241,7 +238,6 @@ class _DayCard extends StatelessWidget {
               onRemoveGroup: () => onRemoveGroup(group),
               onUpdateGroupName: (name) => onUpdateGroupName(group.id, name),
             )),
-            // ── ADICIONAR GRUPAMENTO ──────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
               child: SizedBox(
@@ -257,7 +253,8 @@ class _DayCard extends StatelessWidget {
                   ),
                   onPressed: onAddGroup,
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Adicionar Grupamento', style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: const Text('Adicionar Grupamento',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
               ),
             ),
@@ -300,30 +297,22 @@ class _GroupCard extends StatelessWidget {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           iconColor: AppColors.primary,
           collapsedIconColor: AppColors.muted,
-          title: TextFormField(
-            initialValue: group.name,
-            style: AppTextStyles.title.copyWith(fontSize: 14),
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-            onFieldSubmitted: (value) {
-              if (value.trim().isEmpty) return;
-              onUpdateGroupName(value);
-            },
+          // ── TÍTULO: dropdown de grupamento ──
+          title: GroupDropdown(
+            initialValue: group.name.isEmpty ? null : group.name,
+            onChanged: onUpdateGroupName,
           ),
           children: [
             ...group.exercises.map((ex) => _ExerciseItem(
               exercise: ex,
+              groupName: group.name,
               onRemove: () => onRemoveExercise(ex.id),
               onUpdate: (updated) => onUpdateExercise(updated),
             )),
-            // ── AÇÕES DO GRUPO ────────────────────────────────────────────
             const SizedBox(height: 4),
             Row(
               children: [
@@ -365,11 +354,13 @@ class _GroupCard extends StatelessWidget {
 // ── EXERCISE ITEM ─────────────────────────────────────────────────────────────
 class _ExerciseItem extends StatelessWidget {
   final Exercise exercise;
+  final String groupName;
   final VoidCallback onRemove;
   final Function(Exercise) onUpdate;
 
   const _ExerciseItem({
     required this.exercise,
+    required this.groupName,
     required this.onRemove,
     required this.onUpdate,
   });
@@ -400,28 +391,21 @@ class _ExerciseItem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextFormField(
-              initialValue: exercise.name,
-              style: AppTextStyles.title.copyWith(fontSize: 13),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                hintText: 'Nome do exercício',
-              ),
-              onFieldSubmitted: (value) {
-                if (value.trim().isEmpty) return;
-                onUpdate(exercise.copyWith(name: value));
-              },
+            // ── Dropdown de exercício filtrado pelo grupamento ──
+            ExerciseDropdown(
+              group: groupName.isEmpty ? null : groupName,
+              initialValue: exercise.name.isEmpty ? null : exercise.name,
+              onChanged: (name) => onUpdate(exercise.copyWith(name: name)),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Row(
               children: [
                 _PlanNumberField(
                   label: 'Kg',
                   initialValue: exercise.defaultWeight.toString(),
                   onChanged: (val) => onUpdate(
-                    exercise.copyWith(defaultWeight: double.tryParse(val) ?? exercise.defaultWeight),
+                    exercise.copyWith(
+                        defaultWeight: double.tryParse(val) ?? exercise.defaultWeight),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -429,7 +413,8 @@ class _ExerciseItem extends StatelessWidget {
                   label: 'Séries',
                   initialValue: exercise.defaultSeries.toString(),
                   onChanged: (val) => onUpdate(
-                    exercise.copyWith(defaultSeries: int.tryParse(val) ?? exercise.defaultSeries),
+                    exercise.copyWith(
+                        defaultSeries: int.tryParse(val) ?? exercise.defaultSeries),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -437,7 +422,8 @@ class _ExerciseItem extends StatelessWidget {
                   label: 'Reps',
                   initialValue: exercise.defaultReps.toString(),
                   onChanged: (val) => onUpdate(
-                    exercise.copyWith(defaultReps: int.tryParse(val) ?? exercise.defaultReps),
+                    exercise.copyWith(
+                        defaultReps: int.tryParse(val) ?? exercise.defaultReps),
                   ),
                 ),
               ],
@@ -477,7 +463,8 @@ class _ActionButton extends StatelessWidget {
       ),
       onPressed: onTap,
       icon: Icon(icon, size: 16),
-      label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      label: Text(label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -508,7 +495,8 @@ class _PlanNumberField extends StatelessWidget {
           isDense: true,
           filled: true,
           fillColor: AppColors.surface,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: AppColors.border),
@@ -519,7 +507,8 @@ class _PlanNumberField extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+            borderSide:
+                const BorderSide(color: AppColors.primary, width: 1.5),
           ),
         ),
         onChanged: onChanged,

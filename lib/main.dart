@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:growfit/features/cycle/domain/entities/cycle_state_entity.dart';
 import 'package:growfit/features/cycle/presentation/bloc/cycle_event.dart';
 import 'package:growfit/features/plan/domain/usecases/get_current_training_plan.dart';
+import 'package:growfit/features/plan/presentation/bloc/plan_event.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'features/plan/domain/entities/exercise.dart';
@@ -40,9 +41,9 @@ void main() async {
   await Hive.openBox<WorkoutSession>('workoutSessions');
   await Hive.openBox<CycleStateEntity>('cycleState');
 
-// ⭐ TEMPORÁRIO - limpa sessões antigas com dados corrompidos
-await Hive.box<WorkoutSession>('workoutSessions').clear();
-await Hive.box<CycleStateEntity>('cycleState').clear();
+  // ⭐ TEMPORÁRIO - limpa sessões antigas com dados corrompidos
+  await Hive.box<WorkoutSession>('workoutSessions').clear();
+  await Hive.box<CycleStateEntity>('cycleState').clear();
 
   runApp(const MyApp());
 }
@@ -54,9 +55,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (_) => PlanBloc(), // inicializa PlanBloc
-        ),
+        BlocProvider(create: (_) => PlanBloc()..add(LoadPlan())),
         BlocProvider(
           create: (_) => CycleBloc(
             getCurrentTrainingPlan: GetCurrentTrainingPlan(),
