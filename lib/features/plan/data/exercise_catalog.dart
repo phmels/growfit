@@ -13,10 +13,10 @@ class ExerciseCatalog {
     'Abdômen',
     'Panturrilha',
     'Antebraço',
+    'Aeróbicos',
   ];
 
   static const Map<String, List<String>> exercisesByGroup = {
-
     'Peito': [
       'Supino Reto Barra',
       'Supino Reto Halter',
@@ -46,9 +46,16 @@ class ExerciseCatalog {
       'Remada Curvada Barra',
       'Remada Curvada Halter',
       'Remada Máquina',
+      'Remada Máquina Unilateral',
       'Remada Unilateral Halter',
       'Remada Baixa Cabo',
       'Remada Baixa Triângulo',
+      'Remada Baixa W',
+      'Remada Alta W',
+      'Remada Alta Triângulo',
+      'Remada Alta ',
+      'Remada Alta Unilateral',
+      'Remada Alta Maquina',
       'Remada Cavalinho',
       'Pull-up',
       'Chin-up',
@@ -127,6 +134,7 @@ class ExerciseCatalog {
       'Kickback Halter',
       'Kickback Cabo',
       'Tríceps Máquina',
+      'Tríceps 100',
     ],
 
     'Pernas': [
@@ -138,7 +146,9 @@ class ExerciseCatalog {
       'Leg Press',
       'Hack Squat Máquina',
       'Cadeira Extensora',
+      'Cadeira Extensora Unilateral',
       'Cadeira Flexora',
+      'Cadeira Flexora Unilateral',
       'Mesa Flexora',
       'Stiff Barra',
       'Stiff Halter',
@@ -203,9 +213,39 @@ class ExerciseCatalog {
       'Farmer Walk Barra',
       'Dead Hang',
     ],
+    'Aeróbicos': [
+      'Caminhada',
+      'Caminhada Inclinação',
+      'Corrida',
+      'Corrida na Esteira',
+      'Corrida Intervalada',
+      'Sprint',
+      'Bicicleta',
+      'Bicicleta Ergométrica',
+      'Bicicleta Spinning',
+      'Elíptico',
+      'Escada (Stair Climber)',
+      'Remo Ergômetro',
+      'Pular Corda',
+      'Burpee',
+      'Mountain Climber',
+      'Jumping Jack',
+      'High Knees',
+      'Corrida no Lugar',
+      'Step',
+      'Step Aeróbico',
+      'Air Bike',
+      'Battle Rope',
+      'Sled Push',
+      'Sled Pull',
+      'HIIT Bike',
+      'HIIT Corrida',
+    ],
   };
 
   static List<String> exercisesFor(String group) {
-    return exercisesByGroup[group] ?? [];
+    final list = exercisesByGroup[group] ?? [];
+    final sorted = [...list]..sort();
+    return sorted;
   }
 }
