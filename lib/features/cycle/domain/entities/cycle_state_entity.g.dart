@@ -18,15 +18,18 @@ class CycleStateEntityAdapter extends TypeAdapter<CycleStateEntity> {
     };
     return CycleStateEntity(
       currentIndex: fields[0] as int,
+      restEvery: fields[1] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, CycleStateEntity obj) {
     writer
-      ..writeByte(1)
+      ..writeByte(2)
       ..writeByte(0)
-      ..write(obj.currentIndex);
+      ..write(obj.currentIndex)
+      ..writeByte(1)
+      ..write(obj.restEvery);
   }
 
   @override

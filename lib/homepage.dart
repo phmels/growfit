@@ -23,8 +23,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Future<void> _onRefresh() async {
     context.read<CycleBloc>().add(LoadCycle());
-
-    // Aguarda CycleReady ou CycleError, com timeout de 5s
     await context
         .read<CycleBloc>()
         .stream
@@ -43,8 +41,6 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: AppColors.surface,
           displacement: 40,
           child: SingleChildScrollView(
-            // Obrigatório para o RefreshIndicator funcionar mesmo
-            // quando o conteúdo não precisa de scroll
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 32),
             child: Column(
@@ -60,7 +56,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 12),
                 const _QuickGrid(),
                 const SizedBox(height: 12),
-                const _BottomActions (),
+                const _BottomActions(),
               ],
             ),
           ),
@@ -70,7 +66,97 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// ── HEADER ───────────────────────────────────────────────────────────────────
+// ── SHOW REST CONFIG ──────────────────────────────────────────────────────────
+void _showRestConfig(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (_) {
+      int selected = 0;
+      return StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Text(
+            'Descanso automático',
+            style: AppTextStyles.title.copyWith(fontSize: 16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Inserir 1 dia de descanso a cada:',
+                style: AppTextStyles.subtitle.copyWith(fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (final opt in [0, 1, 2, 3, 4, 5])
+                    GestureDetector(
+                      onTap: () => setState(() => selected = opt),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 35,
+                        height: 35,
+                        decoration: BoxDecoration(
+                          color: selected == opt
+                              ? AppColors.primary
+                              : AppColors.card,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: selected == opt
+                                ? AppColors.primary
+                                : AppColors.border,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          opt == 0 ? '—' : '$opt',
+                          style: AppTextStyles.title.copyWith(
+                            fontSize: 14,
+                            color: selected == opt
+                                ? AppColors.bg
+                                : AppColors.muted,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                selected == 0
+                    ? 'Sem descanso automático'
+                    : 'Descanso após cada $selected treino${selected > 1 ? 's' : ''}',
+                style: AppTextStyles.subtitle.copyWith(fontSize: 11),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancelar', style: AppTextStyles.subtitle),
+            ),
+            TextButton(
+              onPressed: () {
+                context.read<CycleBloc>().add(
+                      UpdateRestConfig(restEvery: selected),
+                    );
+                Navigator.pop(ctx);
+              },
+              child: Text(
+                'Salvar',
+                style: AppTextStyles.subtitle.copyWith(color: AppColors.primary),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+// ── HEADER ────────────────────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
   const _Header();
 
@@ -89,22 +175,47 @@ class _Header extends StatelessWidget {
               color: AppColors.primary,
             ),
           ),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.accent2, AppColors.primary],
+          Row(
+            children: [
+              // ── Botão de descanso ──
+              GestureDetector(
+                onTap: () => _showRestConfig(context),
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.surface,
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.bedtime_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
               ),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              'GF',
-              style: AppTextStyles.button.copyWith(fontSize: 15),
-            ),
+              const SizedBox(width: 10),
+              // ── Avatar GF ──
+              Container(
+                width: 42,
+                height: 42,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.accent2, AppColors.primary],
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'GF',
+                  style: AppTextStyles.button.copyWith(fontSize: 15),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -112,7 +223,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ── HERO STATS ───────────────────────────────────────────────────────────────
+// ── HERO STATS ────────────────────────────────────────────────────────────────
 class _HeroStats extends StatelessWidget {
   const _HeroStats();
 
@@ -121,11 +232,7 @@ class _HeroStats extends StatelessWidget {
     final box = Hive.box<WorkoutSession>('workoutSessions');
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final start = DateTime(
-      startOfWeek.year,
-      startOfWeek.month,
-      startOfWeek.day,
-    );
+    final start = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
     final end = start.add(const Duration(days: 7));
     return box.values
         .where((s) => s.date.isAfter(start) && s.date.isBefore(end))
@@ -136,12 +243,11 @@ class _HeroStats extends StatelessWidget {
     if (!Hive.isBoxOpen('workoutSessions')) return 0;
     final box = Hive.box<WorkoutSession>('workoutSessions');
     if (box.isEmpty) return 0;
-    final days =
-        box.values
-            .map((s) => DateTime(s.date.year, s.date.month, s.date.day))
-            .toSet()
-            .toList()
-          ..sort((a, b) => b.compareTo(a));
+    final days = box.values
+        .map((s) => DateTime(s.date.year, s.date.month, s.date.day))
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     int streak = 0;
@@ -159,25 +265,20 @@ class _HeroStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Lê o número de dias cadastrados no plano via PlanBloc
     final planState = context.watch<PlanBloc>().state;
-    final weeklyGoal = planState is PlanLoaded
-        ? planState.plan.days.length
-        : 4; // fallback enquanto carrega
+    final weeklyGoal =
+        planState is PlanLoaded ? planState.plan.days.length : 4;
 
     final sessions = _sessionsThisWeek();
     final count = sessions.length;
-    final percent = weeklyGoal > 0 ? (count / weeklyGoal).clamp(0.0, 1.0) : 0.0;
+    final percent =
+        weeklyGoal > 0 ? (count / weeklyGoal).clamp(0.0, 1.0) : 0.0;
     final streak = _currentStreak();
 
     final totalSets = sessions.fold<int>(
       0,
-      (sum, s) =>
-          sum +
-          s.exerciseSets.values.fold<int>(
-            0,
-            (es, setList) => es + setList.length,
-          ),
+      (sum, s) => sum +
+          s.exerciseSets.values.fold<int>(0, (es, setList) => es + setList.length),
     );
 
     final remaining = weeklyGoal - count;
@@ -226,11 +327,7 @@ class _HeroStats extends StatelessWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       _MiniStat(value: '$totalSets', unit: '', label: 'Séries'),
-                      _MiniStat(
-                        value: '$streak',
-                        unit: 'd',
-                        label: 'Sequência',
-                      ),
+                      _MiniStat(value: '$streak', unit: 'd', label: 'Sequência'),
                     ],
                   ),
                 ),
@@ -243,7 +340,7 @@ class _HeroStats extends StatelessWidget {
   }
 }
 
-// ── PULSE DOT ────────────────────────────────────────────────────────────────
+// ── PULSE DOT ─────────────────────────────────────────────────────────────────
 class _PulseDot extends StatefulWidget {
   const _PulseDot();
 
@@ -263,10 +360,9 @@ class _PulseDotState extends State<_PulseDot>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
-    _anim = Tween<double>(
-      begin: 1.0,
-      end: 1.5,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _anim = Tween<double>(begin: 1.0, end: 1.5).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -291,7 +387,7 @@ class _PulseDotState extends State<_PulseDot>
   }
 }
 
-// ── PROGRESS RING ────────────────────────────────────────────────────────────
+// ── PROGRESS RING ─────────────────────────────────────────────────────────────
 class _ProgressRing extends StatelessWidget {
   final double percent;
   const _ProgressRing({required this.percent});
@@ -329,16 +425,12 @@ class _ProgressRing extends StatelessWidget {
   }
 }
 
-// ── MINI STAT ────────────────────────────────────────────────────────────────
+// ── MINI STAT ─────────────────────────────────────────────────────────────────
 class _MiniStat extends StatelessWidget {
   final String value;
   final String unit;
   final String label;
-  const _MiniStat({
-    required this.value,
-    required this.unit,
-    required this.label,
-  });
+  const _MiniStat({required this.value, required this.unit, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -380,7 +472,7 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-// ── BOTÃO INICIAR TREINO ─────────────────────────────────────────────────────
+// ── BOTÃO INICIAR TREINO ──────────────────────────────────────────────────────
 class _StartWorkoutButton extends StatelessWidget {
   const _StartWorkoutButton();
 
@@ -388,7 +480,6 @@ class _StartWorkoutButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<CycleBloc, CycleState>(
       builder: (context, state) {
-        // Estado de loading ou inicial — mostra dica de puxar para atualizar
         if (state is CycleLoading || state is CycleInitial) {
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -420,7 +511,6 @@ class _StartWorkoutButton extends StatelessWidget {
           );
         }
 
-        // Estado de erro — orienta o usuário a criar um plano
         if (state is CycleError) {
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -457,7 +547,6 @@ class _StartWorkoutButton extends StatelessWidget {
           );
         }
 
-        // Estado pronto — mostra botão de iniciar treino
         final ready = state as CycleReady;
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -489,9 +578,7 @@ class _StartWorkoutButton extends StatelessWidget {
                     children: [
                       Text(
                         'PRÓXIMO TREINO',
-                        style: AppTextStyles.label.copyWith(
-                          color: AppColors.bg,
-                        ),
+                        style: AppTextStyles.label.copyWith(color: AppColors.bg),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -524,7 +611,7 @@ class _StartWorkoutButton extends StatelessWidget {
   }
 }
 
-// ── SECTION LABEL ────────────────────────────────────────────────────────────
+// ── SECTION LABEL ─────────────────────────────────────────────────────────────
 class _SectionLabel extends StatelessWidget {
   final String text;
   const _SectionLabel(this.text);
@@ -538,7 +625,7 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ── QUICK GRID ───────────────────────────────────────────────────────────────
+// ── QUICK GRID ────────────────────────────────────────────────────────────────
 class _QuickGrid extends StatelessWidget {
   const _QuickGrid();
 
@@ -631,10 +718,7 @@ class _GridCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: AppTextStyles.subtitle.copyWith(
-                  fontSize: 11,
-                  height: 1.4,
-                ),
+                style: AppTextStyles.subtitle.copyWith(fontSize: 11, height: 1.4),
               ),
             ],
           ),
@@ -670,10 +754,7 @@ class _BottomActions extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: AppColors.primary.withOpacity(0.2)),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 18,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 child: Row(
                   children: [
                     Container(
@@ -732,9 +813,8 @@ class _BottomActions extends StatelessWidget {
                         onPressed: () => Navigator.pop(context, true),
                         child: Text(
                           'Apagar',
-                          style: AppTextStyles.subtitle.copyWith(
-                            color: AppColors.danger,
-                          ),
+                          style: AppTextStyles.subtitle
+                              .copyWith(color: AppColors.danger),
                         ),
                       ),
                     ],
@@ -745,8 +825,7 @@ class _BottomActions extends StatelessWidget {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Dados resetados com sucesso!'),
-                      ),
+                          content: Text('Dados resetados com sucesso!')),
                     );
                   }
                 }
@@ -758,10 +837,7 @@ class _BottomActions extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: AppColors.danger.withOpacity(0.2)),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 18,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 child: Row(
                   children: [
                     Container(

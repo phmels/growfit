@@ -3,7 +3,7 @@ import '../../domain/entities/cycle_state_entity.dart';
 import '../../domain/repositories/cycle_repository.dart';
 
 class CycleRepositoryImpl implements CycleRepository {
-  static const _boxName = 'cycleStateBox';
+  static const _boxName = 'cycleState';
   CycleStateEntity? _cache;
 
   /// Salva o estado do ciclo no Hive

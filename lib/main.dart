@@ -41,9 +41,7 @@ void main() async {
   await Hive.openBox<WorkoutSession>('workoutSessions');
   await Hive.openBox<CycleStateEntity>('cycleState');
 
-  // ⭐ TEMPORÁRIO - limpa sessões antigas com dados corrompidos
-  await Hive.box<WorkoutSession>('workoutSessions').clear();
-  await Hive.box<CycleStateEntity>('cycleState').clear();
+
 
   runApp(const MyApp());
 }

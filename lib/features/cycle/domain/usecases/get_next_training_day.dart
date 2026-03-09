@@ -8,12 +8,35 @@ class GetNextTrainingDay {
     required CycleStateEntity cycleState,
   }) {
     if (plan.days.isEmpty) {
-      // Retorna um dia de descanso padrão
       return TrainingDay(id: 'rest', name: 'Dia de Descanso', groups: []);
     }
 
-    // Ciclo normal
-    final index = cycleState.currentIndex % plan.days.length;
-    return plan.days[index];
+    final restEvery = cycleState.restEvery;
+
+    // Sem descanso configurado — comportamento original
+    if (restEvery <= 0) {
+      final index = cycleState.currentIndex % plan.days.length;
+      return plan.days[index];
+    }
+
+    // Com descanso: ciclo virtual tem (restEvery + 1) slots
+    // Ex: restEvery=3 → [treino, treino, treino, descanso, treino, treino, ...]
+    final cycleSize = restEvery + 1;
+    final posInCycle = cycleState.currentIndex % cycleSize;
+
+    if (posInCycle == restEvery) {
+      // É o slot de descanso
+      return TrainingDay(id: 'rest', name: 'Dia de Descanso', groups: []);
+    }
+
+    // É slot de treino — qual dia do plano?
+    // Conta quantos treinos já passaram no total
+    final completedCycles = cycleState.currentIndex ~/ cycleSize;
+    final trainingsInCurrentCycle = posInCycle;
+    final totalTrainings =
+        completedCycles * restEvery + trainingsInCurrentCycle;
+    final dayIndex = totalTrainings % plan.days.length;
+
+    return plan.days[dayIndex];
   }
 }

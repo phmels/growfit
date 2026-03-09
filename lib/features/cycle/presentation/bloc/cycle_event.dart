@@ -10,3 +10,11 @@ abstract class CycleEvent extends Equatable {
 class LoadCycle extends CycleEvent {}
 
 class AdvanceCycle extends CycleEvent {}
+
+class UpdateRestConfig extends CycleEvent {
+  final int restEvery;
+  const UpdateRestConfig({required this.restEvery});
+
+  @override
+  List<Object?> get props => [restEvery];
+}

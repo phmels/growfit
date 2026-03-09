@@ -23,6 +23,7 @@ class CycleBloc extends Bloc<CycleEvent, CycleState> {
   }) : super(CycleInitial()) {
     on<LoadCycle>(_onLoadCycle);
     on<AdvanceCycle>(_onAdvanceCycle);
+    on<UpdateRestConfig>(_onUpdateRestConfig);
   }
 
   Future<void> _onLoadCycle(LoadCycle event, Emitter<CycleState> emit) async {
@@ -42,7 +43,6 @@ class CycleBloc extends Bloc<CycleEvent, CycleState> {
       print("ERRO AO CARREGAR CICLO:");
       print(e);
       print(stack);
-
       emit(CycleError(message: e.toString()));
     }
   }
@@ -52,30 +52,42 @@ class CycleBloc extends Bloc<CycleEvent, CycleState> {
     Emitter<CycleState> emit,
   ) async {
     try {
-      // Incrementa índice do ciclo
       _cycleState = _cycleState.copyWith(
         currentIndex: _cycleState.currentIndex + 1,
       );
 
-      // Salva o estado atualizado no Hive
       await cycleRepository.saveCycleState(_cycleState);
 
-      // Pega o plano atualizado
       _plan = await getCurrentTrainingPlan();
 
-      // Pega o próximo dia de treino com segurança
       final TrainingDay next = getNextTrainingDay.execute(
         plan: _plan,
         cycleState: _cycleState,
       );
 
-      // Emite o novo estado
       emit(CycleReady(nextTrainingDay: next));
     } catch (e, st) {
       print('Erro ao avançar ciclo: $e\n$st');
-      print('NEXT DAY DEBUG');
-   
+      emit(CycleError(message: e.toString()));
+    }
+  }
 
+  Future<void> _onUpdateRestConfig(
+    UpdateRestConfig event,
+    Emitter<CycleState> emit,
+  ) async {
+    try {
+      _cycleState = _cycleState.copyWith(restEvery: event.restEvery);
+      await cycleRepository.saveCycleState(_cycleState);
+
+      final TrainingDay next = getNextTrainingDay.execute(
+        plan: _plan,
+        cycleState: _cycleState,
+      );
+
+      emit(CycleReady(nextTrainingDay: next));
+    } catch (e, st) {
+      print('Erro ao atualizar config de descanso: $e\n$st');
       emit(CycleError(message: e.toString()));
     }
   }
