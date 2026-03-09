@@ -11,7 +11,7 @@ import 'package:growfit/features/workout/domain/entities/workout_session.dart';
 import 'package:growfit/features/workout/presentation/pages/progress_page.dart';
 import 'package:growfit/features/workout/presentation/pages/workout_calendar_page.dart';
 import 'package:growfit/features/workout/presentation/pages/workout_page.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -140,13 +140,15 @@ void _showRestConfig(BuildContext context) {
             TextButton(
               onPressed: () {
                 context.read<CycleBloc>().add(
-                      UpdateRestConfig(restEvery: selected),
-                    );
+                  UpdateRestConfig(restEvery: selected),
+                );
                 Navigator.pop(ctx);
               },
               child: Text(
                 'Salvar',
-                style: AppTextStyles.subtitle.copyWith(color: AppColors.primary),
+                style: AppTextStyles.subtitle.copyWith(
+                  color: AppColors.primary,
+                ),
               ),
             ),
           ],
@@ -227,27 +229,28 @@ class _Header extends StatelessWidget {
 class _HeroStats extends StatelessWidget {
   const _HeroStats();
 
-  List<WorkoutSession> _sessionsThisWeek() {
-    if (!Hive.isBoxOpen('workoutSessions')) return [];
-    final box = Hive.box<WorkoutSession>('workoutSessions');
+  List<WorkoutSession> _sessionsThisWeek(Box<WorkoutSession> box) {
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final start = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+    final start = DateTime(
+      startOfWeek.year,
+      startOfWeek.month,
+      startOfWeek.day,
+    );
     final end = start.add(const Duration(days: 7));
     return box.values
         .where((s) => s.date.isAfter(start) && s.date.isBefore(end))
         .toList();
   }
 
-  int _currentStreak() {
-    if (!Hive.isBoxOpen('workoutSessions')) return 0;
-    final box = Hive.box<WorkoutSession>('workoutSessions');
+  int _currentStreak(Box<WorkoutSession> box) {
     if (box.isEmpty) return 0;
-    final days = box.values
-        .map((s) => DateTime(s.date.year, s.date.month, s.date.day))
-        .toSet()
-        .toList()
-      ..sort((a, b) => b.compareTo(a));
+    final days =
+        box.values
+            .map((s) => DateTime(s.date.year, s.date.month, s.date.day))
+            .toSet()
+            .toList()
+          ..sort((a, b) => b.compareTo(a));
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     int streak = 0;
@@ -266,76 +269,97 @@ class _HeroStats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final planState = context.watch<PlanBloc>().state;
-    final weeklyGoal =
-        planState is PlanLoaded ? planState.plan.days.length : 4;
+    final weeklyGoal = planState is PlanLoaded ? planState.plan.days.length : 4;
 
-    final sessions = _sessionsThisWeek();
-    final count = sessions.length;
-    final percent =
-        weeklyGoal > 0 ? (count / weeklyGoal).clamp(0.0, 1.0) : 0.0;
-    final streak = _currentStreak();
+    // ── Escuta mudanças no box automaticamente ──
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<WorkoutSession>('workoutSessions').listenable(),
+      builder: (context, Box<WorkoutSession> box, _) {
+        final sessions = _sessionsThisWeek(box);
+        final count = sessions.length;
+        final percent = weeklyGoal > 0
+            ? (count / weeklyGoal).clamp(0.0, 1.0)
+            : 0.0;
+        final streak = _currentStreak(box);
 
-    final totalSets = sessions.fold<int>(
-      0,
-      (sum, s) => sum +
-          s.exerciseSets.values.fold<int>(0, (es, setList) => es + setList.length),
-    );
+        final totalSets = sessions.fold<int>(
+          0,
+          (sum, s) =>
+              sum +
+              s.exerciseSets.values.fold<int>(
+                0,
+                (es, setList) => es + setList.length,
+              ),
+        );
 
-    final remaining = weeklyGoal - count;
-    final motivation = count >= weeklyGoal
-        ? 'Meta da semana batida! 🏆'
-        : 'Mais $remaining treino${remaining > 1 ? 's' : ''} para bater sua meta!';
+        final remaining = weeklyGoal - count;
+        final motivation = count >= weeklyGoal
+            ? 'Meta da semana batida! 🏆'
+            : 'Mais $remaining treino${remaining > 1 ? 's' : ''} para bater sua meta!';
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const _PulseDot(),
-                const SizedBox(width: 6),
-                Text('ESTA SEMANA', style: AppTextStyles.label),
-              ],
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.border),
             ),
-            const SizedBox(height: 8),
-            Text(
-              '$count de $weeklyGoal\ntreinos',
-              style: AppTextStyles.title.copyWith(fontSize: 40, height: 1.05),
-            ),
-            const SizedBox(height: 4),
-            Text(motivation, style: AppTextStyles.subtitle),
-            const SizedBox(height: 20),
-            Row(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ProgressRing(percent: percent),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: GridView.count(
-                    shrinkWrap: true,
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 1.6,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      _MiniStat(value: '$totalSets', unit: '', label: 'Séries'),
-                      _MiniStat(value: '$streak', unit: 'd', label: 'Sequência'),
-                    ],
+                Row(
+                  children: [
+                    const _PulseDot(),
+                    const SizedBox(width: 6),
+                    Text('ESTA SEMANA', style: AppTextStyles.label),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$count de $weeklyGoal\ntreinos',
+                  style: AppTextStyles.title.copyWith(
+                    fontSize: 40,
+                    height: 1.05,
                   ),
+                ),
+                const SizedBox(height: 4),
+                Text(motivation, style: AppTextStyles.subtitle),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    _ProgressRing(percent: percent),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: GridView.count(
+                        shrinkWrap: true,
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 1.6,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _MiniStat(
+                            value: '$totalSets',
+                            unit: '',
+                            label: 'Séries',
+                          ),
+                          _MiniStat(
+                            value: '$streak',
+                            unit: 'd',
+                            label: 'Sequência',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -360,9 +384,10 @@ class _PulseDotState extends State<_PulseDot>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
-    _anim = Tween<double>(begin: 1.0, end: 1.5).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _anim = Tween<double>(
+      begin: 1.0,
+      end: 1.5,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -430,7 +455,11 @@ class _MiniStat extends StatelessWidget {
   final String value;
   final String unit;
   final String label;
-  const _MiniStat({required this.value, required this.unit, required this.label});
+  const _MiniStat({
+    required this.value,
+    required this.unit,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -578,7 +607,9 @@ class _StartWorkoutButton extends StatelessWidget {
                     children: [
                       Text(
                         'PRÓXIMO TREINO',
-                        style: AppTextStyles.label.copyWith(color: AppColors.bg),
+                        style: AppTextStyles.label.copyWith(
+                          color: AppColors.bg,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -718,7 +749,10 @@ class _GridCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: AppTextStyles.subtitle.copyWith(fontSize: 11, height: 1.4),
+                style: AppTextStyles.subtitle.copyWith(
+                  fontSize: 11,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -754,7 +788,10 @@ class _BottomActions extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: AppColors.primary.withOpacity(0.2)),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -813,8 +850,9 @@ class _BottomActions extends StatelessWidget {
                         onPressed: () => Navigator.pop(context, true),
                         child: Text(
                           'Apagar',
-                          style: AppTextStyles.subtitle
-                              .copyWith(color: AppColors.danger),
+                          style: AppTextStyles.subtitle.copyWith(
+                            color: AppColors.danger,
+                          ),
                         ),
                       ),
                     ],
@@ -825,7 +863,8 @@ class _BottomActions extends StatelessWidget {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                          content: Text('Dados resetados com sucesso!')),
+                        content: Text('Dados resetados com sucesso!'),
+                      ),
                     );
                   }
                 }
@@ -837,7 +876,10 @@ class _BottomActions extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: AppColors.danger.withOpacity(0.2)),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
                 child: Row(
                   children: [
                     Container(

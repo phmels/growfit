@@ -174,65 +174,65 @@ class _WorkoutPageState extends State<WorkoutPage> {
               ),
 
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        floatingActionButton: isRestDay
-            ? null
-            : Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    // BOTÃO PULAR
-                    Expanded(
-                      child: SizedBox(
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.surface,
-                            foregroundColor: AppColors.textMuted,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              side: const BorderSide(color: AppColors.border),
-                            ),
-                            elevation: 0,
-                          ),
-                          onPressed: () {
-                            context.read<CycleBloc>().add(AdvanceCycle());
-                            Navigator.of(context).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Treino pulado')),
-                            );
-                          },
-                          icon: const Icon(Icons.skip_next, size: 20),
-                          label: const Text(
-                            'Pular',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              // BOTÃO PULAR — aparece sempre
+              Expanded(
+                child: SizedBox(
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.surface,
+                      foregroundColor: AppColors.textMuted,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: const BorderSide(color: AppColors.border),
                       ),
+                      elevation: 0,
                     ),
-                    const SizedBox(width: 12),
-                    // BOTÃO FINALIZAR
-                    Expanded(
-                      flex: 2,
-                      child: SizedBox(
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            await _saveWorkoutSession();
-                            context.read<CycleBloc>().add(AdvanceCycle());
-                            if (!mounted) return;
-                            Navigator.of(context).pop();
-                          },
-                          icon: const Icon(Icons.check, size: 20),
-                          label: const Text(
-                            'Finalizar Treino',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ),
+                    onPressed: () {
+                      context.read<CycleBloc>().add(AdvanceCycle());
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Treino pulado')),
+                      );
+                    },
+                    icon: const Icon(Icons.skip_next, size: 20),
+                    label: const Text(
+                      'Pular',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  ],
+                  ),
                 ),
               ),
+              // BOTÃO FINALIZAR — só aparece se não for descanso
+              if (!isRestDay) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: SizedBox(
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        await _saveWorkoutSession();
+                        context.read<CycleBloc>().add(AdvanceCycle());
+                        if (!mounted) return;
+                        Navigator.of(context).pop();
+                      },
+                      icon: const Icon(Icons.check, size: 20),
+                      label: const Text(
+                        'Finalizar Treino',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
