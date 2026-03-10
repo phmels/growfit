@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:growfit/core/constants/theme.dart';
 import 'package:growfit/features/plan/data/exercise_catalog.dart';
 
-/// Dropdown para selecionar um grupamento muscular.
-/// Inclui opção "+ Personalizado" para digitar um nome livre.
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP DROPDOWN — mantém dropdown simples (poucos itens)
+// ─────────────────────────────────────────────────────────────────────────────
+
 class GroupDropdown extends StatefulWidget {
   final String? initialValue;
   final ValueChanged<String> onChanged;
@@ -25,7 +27,6 @@ class _GroupDropdownState extends State<GroupDropdown> {
   @override
   void initState() {
     super.initState();
-    // Se o valor inicial não está no catálogo, é um valor personalizado
     _selected = widget.initialValue;
   }
 
@@ -46,29 +47,13 @@ class _GroupDropdownState extends State<GroupDropdown> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: Text('Novo Grupamento', style: AppTextStyles.title.copyWith(fontSize: 16)),
+        title: Text('Novo Grupamento',
+            style: AppTextStyles.title.copyWith(fontSize: 16)),
         content: TextField(
           controller: controller,
           autofocus: true,
           style: AppTextStyles.title.copyWith(fontSize: 14),
-          decoration: InputDecoration(
-            hintText: 'Ex: Cardio, Funcional...',
-            hintStyle: AppTextStyles.subtitle,
-            filled: true,
-            fillColor: AppColors.bg,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-            ),
-          ),
+          decoration: _inputDecoration('Ex: Cardio, Funcional...'),
         ),
         actions: [
           TextButton(
@@ -84,7 +69,8 @@ class _GroupDropdownState extends State<GroupDropdown> {
               widget.onChanged(v);
             },
             child: Text('Confirmar',
-                style: AppTextStyles.subtitle.copyWith(color: AppColors.primary)),
+                style:
+                    AppTextStyles.subtitle.copyWith(color: AppColors.primary)),
           ),
         ],
       ),
@@ -94,7 +80,6 @@ class _GroupDropdownState extends State<GroupDropdown> {
   @override
   Widget build(BuildContext context) {
     final items = [...ExerciseCatalog.groups, _custom];
-    // Se o valor selecionado é personalizado (não está no catálogo), mostra ele
     final isCustomValue =
         _selected != null && !ExerciseCatalog.groups.contains(_selected);
 
@@ -108,9 +93,9 @@ class _GroupDropdownState extends State<GroupDropdown> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// EXERCISE DROPDOWN — abre bottom sheet com busca
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// Dropdown para selecionar um exercício baseado no grupamento selecionado.
-/// Inclui opção "+ Personalizado" para digitar um nome livre.
 class ExerciseDropdown extends StatefulWidget {
   final String? group;
   final String? initialValue;
@@ -128,7 +113,6 @@ class ExerciseDropdown extends StatefulWidget {
 }
 
 class _ExerciseDropdownState extends State<ExerciseDropdown> {
-  static const _custom = '+ Personalizado';
   late String? _selected;
 
   @override
@@ -140,7 +124,6 @@ class _ExerciseDropdownState extends State<ExerciseDropdown> {
   @override
   void didUpdateWidget(ExerciseDropdown oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Se o grupamento mudou, reseta a seleção
     if (oldWidget.group != widget.group) {
       setState(() => _selected = null);
     }
@@ -151,46 +134,126 @@ class _ExerciseDropdownState extends State<ExerciseDropdown> {
     return ExerciseCatalog.exercisesFor(widget.group!);
   }
 
-  void _onSelect(String? value) {
-    if (value == _custom) {
-      _showCustomDialog();
-      return;
-    }
-    if (value != null) {
-      setState(() => _selected = value);
-      widget.onChanged(value);
-    }
+  void _openBottomSheet() {
+    if (widget.group == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _ExerciseSearchSheet(
+        exercises: _exercises,
+        onSelected: (value) {
+          setState(() => _selected = value);
+          widget.onChanged(value);
+        },
+      ),
+    );
   }
 
-  void _showCustomDialog() {
+  @override
+  Widget build(BuildContext context) {
+    final isDisabled = widget.group == null;
+
+    return GestureDetector(
+      onTap: isDisabled ? null : _openBottomSheet,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.bg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDisabled
+                ? AppColors.border.withOpacity(0.4)
+                : AppColors.border,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                isDisabled
+                    ? 'Selecione um grupamento primeiro'
+                    : (_selected?.isNotEmpty == true
+                        ? _selected!
+                        : 'Selecione o exercício'),
+                style: (_selected?.isNotEmpty == true && !isDisabled)
+                    ? AppTextStyles.title.copyWith(fontSize: 13)
+                    : AppTextStyles.subtitle.copyWith(fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: isDisabled ? AppColors.muted : AppColors.primary,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOTTOM SHEET COM BUSCA
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ExerciseSearchSheet extends StatefulWidget {
+  final List<String> exercises;
+  final ValueChanged<String> onSelected;
+
+  const _ExerciseSearchSheet({
+    required this.exercises,
+    required this.onSelected,
+  });
+
+  @override
+  State<_ExerciseSearchSheet> createState() => _ExerciseSearchSheetState();
+}
+
+class _ExerciseSearchSheetState extends State<_ExerciseSearchSheet> {
+  final _searchController = TextEditingController();
+  late List<String> _filtered;
+
+  @override
+  void initState() {
+    super.initState();
+    _filtered = [...widget.exercises];
+    _searchController.addListener(_onSearch);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearch() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filtered = widget.exercises
+          .where((e) => e.toLowerCase().contains(query))
+          .toList();
+    });
+  }
+
+  void _selectCustom() {
     final controller = TextEditingController();
+    Navigator.pop(context);
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: Text('Novo Exercício', style: AppTextStyles.title.copyWith(fontSize: 16)),
+        title: Text('Novo Exercício',
+            style: AppTextStyles.title.copyWith(fontSize: 16)),
         content: TextField(
           controller: controller,
           autofocus: true,
           style: AppTextStyles.title.copyWith(fontSize: 14),
-          decoration: InputDecoration(
-            hintText: 'Ex: Supino com Corrente...',
-            hintStyle: AppTextStyles.subtitle,
-            filled: true,
-            fillColor: AppColors.bg,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-            ),
-          ),
+          decoration: _inputDecoration('Ex: Supino com Corrente...'),
         ),
         actions: [
           TextButton(
@@ -202,11 +265,11 @@ class _ExerciseDropdownState extends State<ExerciseDropdown> {
               final v = controller.text.trim();
               if (v.isEmpty) return;
               Navigator.pop(context);
-              setState(() => _selected = v);
-              widget.onChanged(v);
+              widget.onSelected(v);
             },
             child: Text('Confirmar',
-                style: AppTextStyles.subtitle.copyWith(color: AppColors.primary)),
+                style:
+                    AppTextStyles.subtitle.copyWith(color: AppColors.primary)),
           ),
         ],
       ),
@@ -215,28 +278,135 @@ class _ExerciseDropdownState extends State<ExerciseDropdown> {
 
   @override
   Widget build(BuildContext context) {
-    final exercises = _exercises;
-    final items = [...exercises, _custom];
-    final isCustomValue =
-        _selected != null && !exercises.contains(_selected);
-    final isDisabled = widget.group == null;
-
-    return _StyledDropdown<String>(
-      value: isCustomValue ? null : _selected,
-      hint: isDisabled
-          ? 'Selecione um grupamento primeiro'
-          : isCustomValue
-              ? _selected
-              : 'Selecione o exercício',
-      items: isDisabled ? [] : items,
-      onChanged: isDisabled ? null : _onSelect,
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Handle ──
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // ── Título ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Selecionar Exercício',
+                    style: AppTextStyles.title.copyWith(fontSize: 16)),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close,
+                      color: AppColors.muted, size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+          // ── Campo de busca ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: TextField(
+              controller: _searchController,
+              autofocus: true,
+              style: AppTextStyles.title.copyWith(fontSize: 14),
+              decoration: _inputDecoration('Buscar exercício...').copyWith(
+                prefixIcon: const Icon(Icons.search,
+                    color: AppColors.muted, size: 18),
+              ),
+            ),
+          ),
+          // ── Lista ──
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.45,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                ..._filtered.map(
+                  (ex) => ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 2),
+                    title: Text(ex,
+                        style: AppTextStyles.title.copyWith(fontSize: 14)),
+                    trailing: const Icon(Icons.chevron_right,
+                        color: AppColors.muted, size: 18),
+                    onTap: () {
+                      Navigator.pop(context);
+                      widget.onSelected(ex);
+                    },
+                  ),
+                ),
+                // ── Botão personalizado ──
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 2),
+                  leading: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.add,
+                        color: AppColors.primary, size: 16),
+                  ),
+                  title: Text('+ Personalizado',
+                      style: AppTextStyles.title.copyWith(
+                          fontSize: 14, color: AppColors.primary)),
+                  onTap: _selectCustom,
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// Dropdown estilizado reutilizável
+InputDecoration _inputDecoration(String hint) {
+  return InputDecoration(
+    hintText: hint,
+    hintStyle: AppTextStyles.subtitle,
+    filled: true,
+    fillColor: AppColors.bg,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: AppColors.border),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: AppColors.border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STYLED DROPDOWN — usado apenas pelo GroupDropdown
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _StyledDropdown<T> extends StatelessWidget {
   final T? value;
   final String? hint;

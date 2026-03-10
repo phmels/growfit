@@ -98,11 +98,20 @@ class PlanPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        title: const Text('Editar Plano'),
+      appBar:  AppBar(
+        backgroundColor: AppColors.bg,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.bg),
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.primary),
           onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Editar Plano',
+          style: AppTextStyles.title.copyWith(
+            fontSize: 20,
+            letterSpacing: 2,
+            color: AppColors.primary,
+          ),
         ),
       ),
       body: BlocBuilder<PlanBloc, PlanState>(
